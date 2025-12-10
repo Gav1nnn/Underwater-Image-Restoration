@@ -1,0 +1,59 @@
+# 依赖目录
+node_modules/
+venv/
+
+# 输出目录
+outputs/
+uploads/
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 编辑器目录和文件
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 缓存目录
+.cache/
+*.pyc
+__pycache__/
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 构建输出
+dist/
+build/
+
+# 临时文件
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# 配置文件
+*.conf
+*.cfg
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
