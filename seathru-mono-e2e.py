@@ -10,18 +10,22 @@ from torchvision import transforms
 
 import deps.monodepth2.networks as networks
 from sea_thru_pipeline import run_seathru_pipeline
+# 隐藏所有的UserWarning
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
-###############################################################
-# Utility Functions
-###############################################################
+
+# ----------------------------
+# 工具函数
+# ----------------------------
 # 图片加载与预处理
 def load_and_resize_image(image_path, target_size):
-    """Load image and resize while keeping aspect ratio."""
+    """加载图像并按比例缩放至目标大小 (最长边为 target_size)。"""
     img = Image.open(image_path).convert("RGB")
     w, h = img.size
 
-    # keep aspect ratio
+    # 保持宽高比
     if w > h:
         new_w = target_size
         new_h = int(h * (target_size / w))
@@ -34,13 +38,13 @@ def load_and_resize_image(image_path, target_size):
 
 
 def pil_to_tensor(pil_img):
-    """Convert PIL image to normalized tensor (0–1)."""
+    """将 PIL 图像转换为归一化的 PyTorch Tensor (0–1)，并添加 Batch 维度。"""
     transform = transforms.ToTensor()
     return transform(pil_img).unsqueeze(0)
 
 
 def tensor_to_np(t):
-    """Tensor -> numpy image 0–255 uint8."""
+    """将 Tensor 转换回 0–255 uint8 的 NumPy 图像格式。"""
     img = t.squeeze().detach().cpu().numpy()
     img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
     if img.ndim == 2:
@@ -48,15 +52,15 @@ def tensor_to_np(t):
     return np.transpose(img, (1, 2, 0))
 
 
-###############################################################
-# Monodepth2 Depth Prediction
-###############################################################
+# ----------------------------
+# Monodepth2 深度预测
+# ----------------------------
 
 def load_monodepth_model(model_name, device):
     """Load encoder and depth decoder."""
     print(f"[INFO] Loading monodepth2 model: {model_name}")
 
-    # <-- 修改后的路径（适配你当前的根目录 models 文件夹）
+    # # 模型路径
     model_path = os.path.join("models", model_name)
 
     encoder = networks.ResnetEncoder(18, False)
@@ -82,9 +86,9 @@ def load_monodepth_model(model_name, device):
 
 def predict_depth(img_resized, encoder, decoder, feed_w, feed_h, device,
                   depth_scale, depth_offset):
-    """Run monodepth2 and output depth aligned to resized image."""
+    """运行 Monodepth2 模型并输出与缩放图像对齐的深度图。"""
 
-    # Resize to feed resolution:
+    # 将缩放后的图像进一步缩放到模型所需的输入分辨率
     img_resized_feed = img_resized.resize((feed_w, feed_h), Image.LANCZOS)
     input_tensor = pil_to_tensor(img_resized_feed).to(device)
 
@@ -99,19 +103,19 @@ def predict_depth(img_resized, encoder, decoder, feed_w, feed_h, device,
             align_corners=False
         )
 
-    # convert disparity → depth (simple conversion)
+    # 将视差 (disp) 转换为深度 (depth)
     disp_resized_np = disp_resized.squeeze().cpu().numpy()
     depth = 1.0 / (disp_resized_np + 1e-7)
 
-    # scale/offset adjustment
+    # 应用用户指定的深度比例缩放和偏移 (用于调整预测深度与实际深度的关系)
     depth = depth * depth_scale + depth_offset
-
+    # 返回浮点数深度图
     return depth.astype(np.float32)
 
 
-###############################################################
-# Main Pipeline
-###############################################################
+# ----------------------------
+# Main Pipeline (主管道)
+# ----------------------------
 
 def process_image_with_seathru(
     image_path,
@@ -124,29 +128,29 @@ def process_image_with_seathru(
     save_depth=False,
     save_intermediate=False
 ):
-    """Full Sea-Thru pipeline."""
+    """Monodepth2 + Sea-Thru 完整的端到端管道。"""
 
     t0 = time.time()
 
     # ------------------------------------------
-    # Device
+    # Device 设备选择
     # ------------------------------------------
-    device = torch.device("cpu" if no_cuda or not torch.cuda.is_available() else "cuda")
+    device = torch.device("mps" if no_cuda or not torch.cuda.is_available() else "cpu")
     print(f"[INFO] Using device: {device}")
 
     # ------------------------------------------
-    # Load image
+    # Load image 加载图片
     # ------------------------------------------
     original_img, img_resized = load_and_resize_image(image_path, size)
     print(f"[INFO] Loaded and resized image to: {img_resized.size}")
 
     # ------------------------------------------
-    # Load monodepth model
+    # Load monodepth model 加载深度模型
     # ------------------------------------------
     encoder, decoder, feed_w, feed_h = load_monodepth_model(model_name, device)
 
     # ------------------------------------------
-    # Predict depth map
+    # Predict depth map 预测深度图
     # ------------------------------------------
     depth = predict_depth(
         img_resized,
@@ -160,13 +164,14 @@ def process_image_with_seathru(
     )
 
     if save_depth:
+        # 将深度图归一化到 0-255 范围以便保存为图像
         depth_norm = (depth - depth.min()) / (depth.max() - depth.min() + 1e-9)
         depth_img = (depth_norm * 255).astype(np.uint8)
         Image.fromarray(depth_img).save("depth_debug.png")
         print("[INFO] Saved depth_debug.png")
 
     # ------------------------------------------
-    # Run Sea-Thru pipeline
+    # Run Sea-Thru pipeline 运行Sea-Thru
     # ------------------------------------------
     img_resized_np = np.array(img_resized)
     recovered = run_seathru_pipeline(
@@ -176,22 +181,22 @@ def process_image_with_seathru(
     )
 
     # ------------------------------------------
-    # Resize recovered → original
+    # Resize recovered → original 回复道原始尺寸
     # ------------------------------------------
     recovered_img = Image.fromarray(recovered.astype(np.uint8))
     final = recovered_img.resize(original_img.size, Image.LANCZOS)
 
     # ------------------------------------------
-    # Save output
+    # Save output 保存输出
     # ------------------------------------------
     final.save(output_path)
     print(f"[SUCCESS] Output saved → {output_path}")
     print(f"[TIME] Total = {time.time() - t0:.2f}s")
 
 
-###############################################################
-# Command Line Interface
-###############################################################
+# ----------------------------
+# 命令行接口
+# ----------------------------
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
