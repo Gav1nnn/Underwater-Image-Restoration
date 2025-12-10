@@ -135,7 +135,19 @@ def process_image_with_seathru(
     # ------------------------------------------
     # Device 设备选择
     # ------------------------------------------
-    device = torch.device("mps" if no_cuda or not torch.cuda.is_available() else "cpu")
+    if no_cuda:
+        # 用户强制要求不用 GPU
+        device = torch.device("cpu")
+
+    else:
+        # 优先 CUDA → 再 MPS → 最后 CPU
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
+
     print(f"[INFO] Using device: {device}")
 
     # ------------------------------------------
