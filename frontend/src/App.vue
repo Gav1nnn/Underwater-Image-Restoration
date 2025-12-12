@@ -8,104 +8,178 @@ const activeTab = ref('single')
 
 <template>
   <div class="app-container">
-    <!-- 导航栏 -->
     <header class="app-header">
-      <h1 class="app-title">🌊 水下图像修复系统</h1>
-      <nav class="app-nav">
-        <el-menu
-          :default-active="activeTab"
-          mode="horizontal"
-          @select="(key) => activeTab = key"
-          background-color="#0056b3"
-          text-color="#fff"
-          active-text-color="#ffd700"
-        >
-          <el-menu-item index="single">单张修复</el-menu-item>
-          <el-menu-item index="batch">批量修复</el-menu-item>
-        </el-menu>
-      </nav>
+      <div class="header-content">
+        <div class="logo-area">
+          <span class="logo-icon">🌊</span>
+          <h1 class="app-title">DeepSee <span class="subtitle">水下图像修复系统</span></h1>
+        </div>
+        
+        <nav class="app-nav">
+          <el-menu
+            :default-active="activeTab"
+            mode="horizontal"
+            @select="(key) => activeTab = key"
+            class="transparent-menu"
+            :ellipsis="false"
+          >
+            <el-menu-item index="single">
+              <el-icon><Monitor /></el-icon>单张精修
+            </el-menu-item>
+            <el-menu-item index="batch">
+              <el-icon><Files /></el-icon>批量处理
+            </el-menu-item>
+          </el-menu>
+        </nav>
+      </div>
     </header>
 
-    <!-- 主要内容区域 -->
     <main class="app-main">
-      <div class="content-wrapper">
-        <!-- 单张修复 -->
-        <SingleRepair v-if="activeTab === 'single'" />
-        <!-- 批量修复 -->
-        <BatchRepair v-else />
-      </div>
+      <transition name="fade" mode="out-in">
+        <div class="content-wrapper">
+          <keep-alive>
+            <component :is="activeTab === 'single' ? SingleRepair : BatchRepair" />
+          </keep-alive>
+        </div>
+      </transition>
     </main>
 
-    <!-- 页脚 -->
     <footer class="app-footer">
-      <p>&copy; 2025 水下图像修复系统 | 基于 Sea-Thru + Monodepth2 算法</p>
+      <p>&copy; 2025 DeepSee Restoration System | 基于 Sea-Thru + Monodepth2 算法</p>
     </footer>
   </div>
 </template>
 
-<style>
-/* 全局样式重置 */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f7fa;
-  color: #333;
-}
-
-/* 应用容器 */
+<style scoped>
+/* --- 全局容器布局 (粘性页脚核心) --- */
 .app-container {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  min-height: 100vh; /* 强制占满视口高度 */
+  /* 这里不需要设背景，因为 main.js 引入的 style.css 里的 body 已经设了全局背景 */
 }
 
-/* 导航栏 */
+/* --- 导航栏美化 --- */
 .app-header {
-  background-color: #0056b3;
-  color: white;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.85); /* 半透明白 */
+  backdrop-filter: blur(12px);           /* 毛玻璃模糊 */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* 柔和阴影 */
+  padding: 0 2rem;
+}
+
+.header-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 70px;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.logo-icon {
+  font-size: 2rem;
+  animation: float 3s ease-in-out infinite; /* 浮动动画 */
 }
 
 .app-title {
   font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  text-align: center;
+  font-weight: 800;
+  /* 渐变文字效果 */
+  background: linear-gradient(120deg, #0066cc, #00b4d8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
 }
 
-.app-nav {
-  max-width: 1200px;
-  margin: 0 auto;
+.subtitle {
+  font-size: 1.2rem;
+  color: #666;
+  font-weight: 400;
+  margin-left: 8px;
+  -webkit-text-fill-color: #666; /* 重置 subtitle 的颜色 */
 }
 
-/* 主要内容区域 */
+/* --- 菜单透明化处理 --- */
+.transparent-menu {
+  background: transparent !important;
+  border-bottom: none !important;
+  width: 300px;
+  justify-content: flex-end;
+}
+
+/* --- 主要内容区域 (自动填充剩余空间) --- */
 .app-main {
-  flex: 1;
+  flex: 1; /* 关键：把 footer 挤到底部 */
   padding: 2rem;
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   width: 100%;
+  display: flex;          /* 确保子元素能撑开 */
+  flex-direction: column;
 }
 
 .content-wrapper {
-  background: white;
-  border-radius: 8px;
-  padding: 2rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  flex: 1;
+  width: 100%;
 }
 
-/* 页脚 */
+/* --- 页脚美化与居中 --- */
 .app-footer {
-  background-color: #f0f2f5;
-  color: #606266;
   text-align: center;
-  padding: 1rem;
-  margin-top: auto;
-  font-size: 0.9rem;
+  padding: 1.5rem;
+  color: #909399;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  /* 页脚背景微调，使其融入整体 */
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(5px);
+  margin-top: auto; /* 双重保险，确保在底部 */
+}
+
+/* --- 动画效果 --- */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* 浮动动画关键帧 */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    height: auto;
+    padding: 1rem 0;
+    gap: 1rem;
+  }
+  
+  .transparent-menu {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>
